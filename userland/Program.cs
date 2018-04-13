@@ -1,7 +1,8 @@
 ﻿/*
  * Name: Trevor Philip
  * Date: April 11, 2018
- * 
+ * Course: CMSC 421 Spring 2018, Project 2
+ * Userspace program
  */
 
 using System;
@@ -13,9 +14,9 @@ namespace IntrusionMonitor
 {
     class MainClass
     {
-        private static Queue<>
+        private static Queue<LogResult> logQueue = new Queue<LogResult>();
         
-        static void Main(string[] args)
+        public static void Main(string[] args)
         {
             // start watching the log directory
             WatchLogDirectory("/var/log/proj2");
@@ -24,20 +25,27 @@ namespace IntrusionMonitor
             {
                 // keep running the main thread, sleep for 50 seconds
                 System.Threading.Thread.Sleep(50);
+                var pop = logQueue.Dequeue();
+                pop.ProcessLog();
+                if (pop.HammingDistance > 0) 
+                {
+                    Console.WriteLine("WARNING: Hamming distance is larger than 0!: {0}" pop.HammingDistance);
+                }
             }
         }
 
         static void Watcher_Changed(object sender, FileSystemEventArgs e)
         {
-            
+            var logReader = new LogReader(e.FullPath);
+            EnqueueThreadSafe(logReader.GetLogResult());
         }
 
 
-        static void EnqueueThreadSafe()
+        static void EnqueueThreadSafe(LogResult result)
         {
             var obj = new Object();
             lock(obj) {
-                
+                logQueue.Enqueue(result);
             }
         }
 
