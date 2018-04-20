@@ -339,6 +339,9 @@
 330	common	pkey_alloc		sys_pkey_alloc
 331	common	pkey_free		sys_pkey_free
 332	common	statx			sys_statx
+333	common	sys_ids_log_on		sys_ids_log_on
+334	common	sys_ids_log_off		sys_ids_log_off
+335	common	sys_ids_log_format	sys_ids_log_format
 
 #
 # x32-specific system call numbers start at 512 to avoid cache impact
