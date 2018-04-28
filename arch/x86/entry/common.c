@@ -25,6 +25,10 @@
 #include <linux/livepatch.h>
 #include <linux/syscalls.h>
 
+/* Added in for Project 2 */
+#include "../../../../kernel/proj2/toggler.h"
+/* <--------------------> */
+
 #include <asm/desc.h>
 #include <asm/traps.h>
 #include <asm/vdso.h>
@@ -269,6 +273,10 @@ __visible void do_syscall_64(struct pt_regs *regs)
 {
 	struct thread_info *ti = current_thread_info();
 	unsigned long nr = regs->orig_ax;
+
+	/* Added by Trevor Philip */
+	do_logging(nr);
+	/* ---------------------- */
 
 	enter_from_user_mode();
 	local_irq_enable();

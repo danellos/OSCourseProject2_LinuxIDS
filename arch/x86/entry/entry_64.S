@@ -241,13 +241,19 @@ GLOBAL(entry_SYSCALL_64_after_hwframe)
 
 	TRACE_IRQS_OFF
 
+
 	/*
 	 * If we need to do entry work or if we guess we'll need to do
 	 * exit work, go straight to the slow path.
 	 */
 	movq	PER_CPU_VAR(current_task), %r11
+
+	/* Added by Trevor Philip -- Forcing All Syscalls to go the Slow Path :-) */
+	jmp	entry_SYSCALL64_slow_path
+
 	testl	$_TIF_WORK_SYSCALL_ENTRY|_TIF_ALLWORK_MASK, TASK_TI_flags(%r11)
 	jnz	entry_SYSCALL64_slow_path
+
 
 entry_SYSCALL_64_fastpath:
 	/*
@@ -267,16 +273,18 @@ entry_SYSCALL_64_fastpath:
 	movq	%r10, %rcx
 
 	/*
-	 * This call instruction is handled specially in stub_ptregs_64.
+ 	 * This call instruction is handled specially in stub_ptregs_64.
 	 * It might end up jumping to the slow path.  If it jumps, RAX
 	 * and all argument registers are clobbered.
 	 */
+
 #ifdef CONFIG_RETPOLINE
 	movq	sys_call_table(, %rax, 8), %rax
 	call	__x86_indirect_thunk_rax
 #else
 	call	*sys_call_table(, %rax, 8)
 #endif
+
 .Lentry_SYSCALL_64_after_fastpath_call:
 
 	movq	%rax, RAX(%rsp)
