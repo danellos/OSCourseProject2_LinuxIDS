@@ -1,7 +1,7 @@
 #pragma once
- 
+
 #include <linux/types.h>
- 
+
 /*
 Name: Trevor Philip
 Student ID: NL10252
@@ -14,12 +14,12 @@ Structure definition for a tracked process.
 */
 typedef struct tracked_process {
 	/* the process ID as an unsigned int */
-	unsigned int pid; 
+	unsigned int pid;
 	/* flag for turning the logging on the process on or off */
 	bool is_on;
 	/* pointer to the next process in list */
 	struct tracked_process *next;
-	
+
 } tracked_process;
 
 /* Toggles the IDS logger. */
