@@ -10,14 +10,16 @@ Purpose: Contains the additional system calls needed for the IDS logger.
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
+#include <asm/errno.h>
 
 /*
 Turns the IDS logger on for a given process ID.
 */
 asmlinkage long sys_ids_log_on(unsigned int process_id) {
 	if (process_id == 0) {
-		printk("Proj2: Invalid process_id passed");
-		return -1;
+		printk(KERN_ERR "PROJ2: Invalid process_id passed");
+		return -EINVAL;
 	}
 
 	printk("PROJ2: Logging system calls for process ID %u", process_id);
@@ -32,8 +34,8 @@ removes from the list of tracked processes.
 asmlinkage long sys_ids_log_off(unsigned int process_id)
 {
         if (process_id == 0) {
-                printk("Proj2: Invalid process_id passed");
-                return -1;
+                printk(KERN_ERR "PROJ2: Invalid process_id passed");
+                return -EINVAL;
         }
 
 	printk("PROJ2: Stopped logging system calls for process ID %u", process_id);
@@ -51,12 +53,17 @@ asmlinkage long sys_ids_log_read(unsigned int process_id, unsigned char *log_dat
         int i;
 	char buffer[100];
 
-	if (process_id == 0 || log_data == 0) {
-                printk("Proj2: Invalid process_id or log_data pointer passed");
-                return -1; //replace with error code appropriate
+	if (process_id == 0 || !access_ok(WRITE_OK, log_data, 100)) {
+                printk(KERN_ERR "Proj2: Invalid process_id or log_data pointer passed");
+                return -EINVAL;
         }
 
 	data = get_node(process_id);
+
+	if (data == NULL) {
+		printk(KERN_ERR "PROJ2: Invalid process_id");
+	}
+
 	data->is_on = false;
 
 	snprintf(buffer, 100,
