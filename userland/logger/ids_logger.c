@@ -19,6 +19,7 @@ Purpose: Retrieves the system call logs from kernel memory, which can then
 #include <sys/types.h>
 #include <signal.h>
 #include <sys/time.h>
+#include <ctype.h>
 
 /*
 Starts the tracking by sending a system call to the kernel.
@@ -98,13 +99,14 @@ void do_logging(unsigned int process_id, int stagger)
 	}
 }
 
-int main(int argc, char **argv)
+/*
+If no arguments are passed to the console, the user is prompted with this.
+*/
+void do_prompt()
 {
 	char buff_choice[1];
-	unsigned int stagger;
 	unsigned int process_id;
-
-	printf("\nWelcome to Trevor Philip's Intrustion Detection System!\n\n");
+	unsigned int stagger;
 
 	while (1) {
 		printf("What would you like to do?\n");
@@ -137,6 +139,73 @@ int main(int argc, char **argv)
 		}
 		else {
 			printf("\nInvalid choice! Try again.\n\n");
+		}
+	}
+}
+
+/*
+Prints a message that there are too few arguments and returns 1;
+*/
+int too_few_args()
+{
+	printf("Too few arguments for this function! See README file for help.\n");
+        return 1;
+}
+
+int convert(char* str)
+{
+	int size;
+	int i;
+	if (!str) {
+		printf("String is not a number!");
+		exit(1);
+	}
+	size = strlen(str);
+	for (i = 0; i < size; i++) {
+		if (!isdigit(str[i])) {
+			printf("String is not a number!");
+			exit(1);
+		}
+	}
+
+	return (strtoul(str, NULL, 10));
+}
+
+int main(int argc, char **argv)
+{
+	/*char buff_choice[1];*/
+	unsigned int stagger = 150;
+	unsigned int process_id;
+
+	printf("\nWelcome to Trevor Philip's Intrustion Detection System!\n\n");
+
+	if (argc == 1) {
+		/* user specified no arguments, so prompt them */
+		do_prompt();
+	} else {
+		/* user specified arguments, make sure there are enough */
+		if (argc < 3) {
+			return too_few_args();
+		}
+
+		/* The second argument will always be the process ID. */
+
+		process_id = convert(argv[2]);
+
+		if (strcmp(argv[1], "track") == 0) {
+			start_tracking(process_id);
+		} else if (strcmp(argv[1], "untrack") == 0) {
+			stop_tracking(process_id);
+		} else if (strcmp(argv[1], "log") == 0) {
+			if (argc > 3) {
+				stagger = convert(argv[3]);
+			} else {
+				printf("\nNote: The stagger was not specified. Defaulting to 150 msec\n\n");
+			}
+			do_logging(process_id, stagger);
+		} else {
+			printf("Unknown command!\n");
+			return 1;
 		}
 	}
 
