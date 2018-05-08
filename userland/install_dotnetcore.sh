@@ -5,10 +5,10 @@
 # Purpose: Installs DotNet Core SDK and dependencies needed for the intrusion detection system. Commands
 #          are based on https://www.microsoft.com/net/download/linux-package-manager/debian9/sdk-current
 
-#if [[ $EUID -ne 0 ]]; then
-#   echo "This script must be run as root user!"
-#   exit 1
-#fi
+if ! [ $(id -u) = 0 ]; then
+   echo "I am not root! Please run me as root!"
+   exit 1
+fi
 
 apt-get update
 apt-get install apt-transport-https
