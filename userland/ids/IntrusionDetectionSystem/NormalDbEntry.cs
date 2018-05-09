@@ -1,4 +1,14 @@
-﻿using System;
+﻿/*
+ * Name: Trevor Philip
+ * Student ID: NL10252
+ * Date: 5/8/2018
+ * CMSC 421, Spring 2018
+ *
+ * Purpose: A model for representing a database entry.
+ *
+ */
+
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -20,7 +30,7 @@ namespace IntrusionDetectionSystem
         /// The logs are stored in windows of 10, but we sub-divide these into 
         /// windows of 5.
         /// </summary>
-        private const int K = 5;
+        public static readonly int K = 5;
 
         /// <summary>
         /// This is an MD5 hash of the binary executable that the process is running
@@ -39,95 +49,6 @@ namespace IntrusionDetectionSystem
         /// of K allows).
         /// </summary>
         [JsonProperty("database")]
-        public Dictionary<uint, List<uint[]>> Syscalls { get; set; } = new Dictionary<uint, List<uint[]>>();
-
-
-        /// <summary>
-        /// This is the main algorithm of the entire IDS. Here 
-        /// we attempt to determine if the program has made
-        /// any system calls it should not do. An attempt was made
-        /// to implemented it similarly to K. Hofmeyr, et al's method.
-        /// </summary>
-        /// <param name="syscallSequence">The raw sequence of system calls.</param>
-        /// <param name="syscalls">The database of known statically-defined system calls in the kernel.</param>
-        /// <returns></returns>
-        public List<string> DetermineIntrusions(List<int> syscallSequence, Dictionary<uint, Syscall> syscalls)
-        {
-            // this is our vector of intrusions 
-            var intrusions = new List<string>();
-
-            for (int i = 0; i < syscallSequence.Count; i++)
-            {
-                // -1 means an empty space from the kernel
-                if(syscallSequence[i] == -1)
-                    break; 
-
-                // build K-sized sub-list to compare
-                var sub = new List<uint>();
-                for (int j = i + 1; j < K && j < syscallSequence.Count; j++)
-                {
-                    sub.Add(Convert.ToUInt32(syscallSequence[j]));
-                }
-
-                // get the unsigned int version of the current syscall ID
-                uint syscallId = Convert.ToUInt32(syscallSequence[i]);
-
-                // get the list of sequences
-                var sequenceList = Syscalls[syscallId];
-                if (sequenceList == null)
-                {
-                    // If we reach this condition, it  *could* mean an attack, but as Hofmeyr, et al indicated in their paper,
-                    // this may not necessarily be the case. This condition could be reached if, for example, a program
-                    // runs out of disk space and abnormal system calls are made. This is not illegal behavior, but it would
-                    // be classified as unknown behavior.
-
-                    var entryPoint = syscalls[syscallId].EntryPoint;
-                    var sb = new StringBuilder();
-
-                    // build message
-                    sb.AppendFormat("{0} ", entryPoint);
-                    foreach (var id in sub) 
-                        sb.AppendFormat("{0} ", syscalls[id].EntryPoint);
-
-                    intrusions.Add($"UNKNOWN BEHAVIOR: There are no known sequence combinations for system call {entryPoint}. The window values are: {sb.ToString()}");
-                    continue;
-                }
-
-                // if we end up with this remaining false, we have a potential breach
-                bool equivalent = false;
-
-                // iterate only over sequences with equivalent length
-                foreach (var validSequence in sequenceList.Where(x => x.Length == sub.Count))
-                {
-                    // Because C# is awesome and was not designed by script kiddies, 
-                    // this is actually only happening in O(n) time at worst.
-                    // A join does not imply arrays/lists being merged. This is actually just
-                    // creating an anonymous well-optimized IEnumerable (possibly a List) type in the background :-)
-                    var q = from a in sub 
-                        join b in validSequence on a equals b
-                        select a;
-                    equivalent = q.Count() == sub.Count;
- 
-                    if (equivalent)
-                        break; // this means we found a match, so 
-                }
-
-                if (!equivalent)
-                { 
-                    var entryPoint = syscalls[syscallId].EntryPoint;
-                    var sb = new StringBuilder();
-
-                    // build message
-                    sb.AppendFormat("{0} ", entryPoint);
-                    foreach (var id in sub)
-                        sb.AppendFormat("{0} ", syscalls[id].EntryPoint);
-
-                    intrusions.Add($"POTENTIAL INTRUSION: Abnormal system call sequence detected: {sb.ToString()}");
-                }
-
-            }
-
-            return intrusions;
-        }
+        public Dictionary<uint, List<Syscall[]>> SyscallSequences { get; set; } = new Dictionary<uint, List<Syscall[]>>();
     }
 }

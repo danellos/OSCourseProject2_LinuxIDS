@@ -20,6 +20,7 @@ Purpose: Retrieves the system call logs from kernel memory, which can then
 #include <signal.h>
 #include <sys/time.h>
 #include <ctype.h>
+#include <limits.h>
 
 /*
 Starts the tracking by sending a system call to the kernel.
@@ -64,10 +65,15 @@ void do_logging(unsigned int process_id, int stagger)
 {
 	FILE * fp;
 	char * buff;
+	char * buff_full;
 	char fileName[40];
 	struct timeval tp;
 	unsigned long m_tval;
 	struct stat st = {0};
+	char * proc_exe;
+	char * real_path;
+	int is_access;
+	int len;
 
 	/* make this logging directory if it does not exist */
 	if (stat("logs", &st) == -1) {
@@ -79,21 +85,59 @@ void do_logging(unsigned int process_id, int stagger)
 		/* log file gets named after the unix time in microsecods */
 		gettimeofday(&tp, 0);
 		m_tval = 1000000 * tp.tv_sec + tp.tv_usec;
-		snprintf(fileName, 40, "logs/%lu.log", m_tval); 
+		snprintf(fileName, 40, "logs/%lu.log", m_tval);
+
+		/* malloc the data we need */
 		buff = (char *)malloc(sizeof(char) * 100);
+		buff_full = (char *)malloc(sizeof(char) * (PATH_MAX + 100));
+		proc_exe = (char *)malloc(sizeof(char) * 25);
+		real_path = (char *)malloc(sizeof(char) * (PATH_MAX + 1));
+
+		/* verify that the process is actually running */
+		snprintf(proc_exe, 25, "/proc/%lu/exe", process_id);
+		is_access = access(proc_exe, F_OK) != 1;
+
+		/* Make sure the syscall is returning correctly */
 		if (syscall(335, process_id, buff) < 0) {
 			printf("\nCall to syscall 335 failed. This usually happens if the provided process ID is invalid.\n");
+			printf("%u -- %s\n", process_id, buff);
 			break;
 		}
+
+		/* if the process is being tracked but not running, we shouldnt */
+		if (!is_access) {
+			printf("\nThe process of PID %lu is not running. Recommend running './ids_logger untrack %lu' to stop tracking it!\n", process_id, process_id);
+			break;
+		}
+
 		/* this prevents us from writing extraneous logs */
 		if (strstr(buff, "-1,-1,-1,-1,-1,-1,-1,-1,-1,-1") != NULL) {
 			usleep(stagger * 1000);
+			free(buff);
+			free(buff_full);
+			free(proc_exe);
+			free(real_path);
 			continue;
 		}
+
+		/* verify that proc/exe is running */
+		len = readlink(proc_exe, real_path, PATH_MAX);
+		if (len == -1) {
+			printf("Could not get the real file location for %s\n", proc_exe);
+			break;
+		}
+
+		/* merge the real location into buffer, then wrtie file*/
+		snprintf(buff_full, (PATH_MAX + 100), "%s,%s", real_path, buff);
 		fp = fopen(fileName, "w");
-		fprintf(fp, "%s", buff);
+		fprintf(fp, "%s", buff_full);
 		fclose(fp);
+
+		/* clear memory */
 		free(buff);
+		free(buff_full);
+		free(proc_exe);
+		free(real_path);
 		printf("Created log file %s\n", fileName);
 		usleep(stagger * 1000);
 	}
@@ -119,19 +163,19 @@ void do_prompt()
 
 		if (strcmp(buff_choice, "1") == 0) {
 			printf("\n Input the Process ID to be tracked: ");
-			scanf("%ld", &process_id);
+			scanf("%u", &process_id);
 			start_tracking(process_id);
 		}
 		else if (strcmp(buff_choice, "2") == 0) {
 			printf("\n Input the Process ID to be removed: ");
-			scanf("%ld", &process_id);
+			scanf("%u", &process_id);
 			stop_tracking(process_id);
 		}
 		else if (strcmp(buff_choice, "3") == 0) {
 			printf("\n Input the Process ID to be logged: ");
-			scanf("%ld", &process_id);
+			scanf("%u", &process_id);
 			printf("\n Please enter the value in milliseconds for sleeping this thread: ");
-			scanf("%ld", &stagger);
+			scanf("%u", &stagger);
 			do_logging(process_id, stagger);
 		}
 		else if (strcmp(buff_choice, "4") == 0) {
