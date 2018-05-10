@@ -195,7 +195,7 @@ namespace IntrusionDetectionSystem
                         foreach (var sys in sub)
                             sb.AppendFormat("{0} ", sys.Name);
 
-                        intrusions.Add($"UNKNOWN BEHAVIOR: " +
+                        intrusions.Add($"UNKNOWN BEHAVIOR ({parts[0]} -- {parts[1]}): " +
                                        $"\n ---> There are no known sequence combinations for system call '{syscall.EntryPoint}'. " +
                                        $"\n ---> The window values are: '{sb.ToString()}'");
                         continue;
@@ -252,7 +252,7 @@ namespace IntrusionDetectionSystem
                             sbClosest.AppendFormat("{0} ", sys.Name);
 
                         intrusions.Add(
-                            $"POTENTIAL INTRUSION: " +
+                            $"POTENTIAL INTRUSION ({parts[0]} -- {parts[1]}): " +
                             $"\n ---> Potential breach from syscall '{syscall.Name}'. " +
                             $"\n ---> The window values are: '{sbWindow.ToString()}'" +
                             $"\n ---> The syscall sequence it most closely relates to is: '{sbClosest.ToString()}'" +
