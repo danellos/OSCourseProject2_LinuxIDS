@@ -1,7 +1,7 @@
 /*
 Name: Trevor Philip
 Student number: NL10252
-DateL 5/2/2018
+Date: 5/2/2018
 CMSC 421 Spring 2018
 
 Purpose: Retrieves the system call logs from kernel memory, which can then
@@ -88,8 +88,8 @@ void do_logging(unsigned int process_id, int stagger)
 		snprintf(fileName, 40, "logs/%lu.log", m_tval);
 
 		/* malloc the data we need */
-		buff = (char *)malloc(sizeof(char) * 100);
-		buff_full = (char *)malloc(sizeof(char) * (PATH_MAX + 100));
+		buff = (char *)malloc(sizeof(char) * 500);
+		buff_full = (char *)malloc(sizeof(char) * (PATH_MAX + 500));
 		proc_exe = (char *)malloc(sizeof(char) * 25);
 		real_path = (char *)malloc(sizeof(char) * (PATH_MAX + 1));
 
@@ -123,8 +123,9 @@ void do_logging(unsigned int process_id, int stagger)
 		/* verify that proc/exe is running */
 		len = readlink(proc_exe, real_path, PATH_MAX);
 		if (len == -1) {
-			printf("Could not get the real file location for %s\n", proc_exe);
-			break;
+			printf("Could not get the real file location for %s\n, the process might have ended.", proc_exe);
+			printf("The /proc/ alias will be used instead, but you must specify an alias manually in the IDS program.\n");
+			strcpy(real_path, proc_exe);
 		}
 
 		/* merge the real location into buffer, then wrtie file*/
@@ -221,7 +222,12 @@ int main(int argc, char **argv)
 	unsigned int stagger = 150;
 	unsigned int process_id;
 
-	printf("\nWelcome to Trevor Philip's Intrustion Detection System!\n\n");
+	if (geteuid() != 0) {
+		printf("ERROR! You must run this logger as root.\n");
+		return 1;
+	}
+
+	printf("\nWelcome to Trevor Philip's Intrustion Detection System!\n");
 
 	if (argc == 1) {
 		/* user specified no arguments, so prompt them */

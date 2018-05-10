@@ -1,0 +1,8 @@
+idsdata README
+===============
+
+* Examples of "good" system calls are in the "good" folder
+* Examples of "bad" system calls are in the "bad" folder
+
+To train the IDS and test it against these files, you should place the "good" ones under userland/logger/logs.
+To test the IDS after training it with bad logs, place the "bad" files in userland/logger/logs.

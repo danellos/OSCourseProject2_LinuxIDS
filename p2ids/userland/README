@@ -1,0 +1,6 @@
+userland README
+===============
+
+You MUST run install_dotnetcore.sh as root user for the IDS to work. The "logger" does not require this runtime, but the IDS does.
+
+Then once done, navigate to ids/IntrusionDetectionSystem and simply type "dotnet run"

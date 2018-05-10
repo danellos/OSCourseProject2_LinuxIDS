@@ -12,10 +12,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Net.Mime;
 using System.Text;
 using Newtonsoft.Json;
 using static System.Console;
@@ -61,6 +59,41 @@ namespace IntrusionDetectionSystem
                 _syscalls[item.Id] = item;
         }
 
+        private bool ValidateLogEntry(string[] parts, string file)
+        {
+            if (parts.Length != logLen)
+            {
+                WriteLine("Log file {0} is malformed. Skipping!", file);
+                File.Delete(file);
+                return false;
+            }
+
+            // ensure each item is parsable to uint 
+            for (int i = 1; i < logLen; i++)
+            {
+                if (parts[i] != "-1")
+                {
+                    try
+                    {
+                        uint test = uint.Parse(parts[i]);
+                        if (!_syscalls.Keys.Contains(test) && i >= 2)
+                        {
+                            File.Delete(file);
+                            return false;
+                        }
+                    }
+                    catch (System.Exception) // could be FormatException or OverflowException
+                    {
+                        WriteLine("Log file {0} is malformed. Skipping!", file);
+                        File.Delete(file);
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
         /// <summary>
         /// Runs the intrustion detection system. Will stop if
         /// the IDS has not been trained to understand normal
@@ -74,6 +107,7 @@ namespace IntrusionDetectionSystem
         {
             // this is the list of intrusions we will write to log
             List<string> intrusions = new List<string>();
+            var tempProcMatching = new Dictionary<string, string>();
 
             // iterate over each file
             foreach (var file in Directory.GetFiles(_logDirectory, "*.log"))
@@ -86,9 +120,25 @@ namespace IntrusionDetectionSystem
 
                 string[] parts = fileContent.Split(',');
 
-                if (parts.Length != logLen)
-                    throw new FileLoadException("log file is not in the correct format!");
+                // validate the format of the log file
+                if (!ValidateLogEntry(parts, file))
+                    continue;
 
+                // make sure that we got the symblink of the proc/pid/exe
+                if (parts[0].Contains("/proc/") && parts[0].Contains("/exe") && !tempProcMatching.ContainsKey(parts[0]))
+                {
+                    // This might have happened if the process ended before the C logger program could get the symblink
+                    var key = parts[0];
+                    Write("Unknown alias {0}. Please specify the real name of this process or press ENTER to skip: ", key);
+                    parts[0] = ReadLine();
+                    if (parts[0] == null || parts[0].Trim() == string.Empty)
+                        continue;
+                    tempProcMatching[key] = parts[0];
+                }
+
+                // the ID will be the process alias (usually the directory location). We did not get the MD5
+                // of the process's executable, because a compromised process might have had the executable
+                // changed, which would defeat the purpose of the IDS to begin with
                 string id = Utils.GenerateMD5(parts[0]);
                 var dbFile = $"database/{id}.json";
 
@@ -172,7 +222,7 @@ namespace IntrusionDetectionSystem
                             {
                                 if (sequence[j] == null && sub[j] == null)
                                     continue;
-                                if (sequence[j] == null ^ sub[j] == null)
+                                if (sequence[j] == null ^ sub[j] == null) // XOR
                                 {
                                     currDistance++;
                                     continue;
@@ -221,7 +271,7 @@ namespace IntrusionDetectionSystem
                         WriteLine($"{intrusion}");
                     }
 
-                    TextWriter tw = new StreamWriter($"{DateTime.Now:MM-dd-yyyy-hh-mm-ss-fffffff}.txt");
+                    TextWriter tw = new StreamWriter($"intrusion_logs/{DateTime.Now:MM-dd-yyyy-hh-mm-ss-fffffff}.txt");
                     System.Threading.Thread.Sleep(10); // sleep for 10 milliseconds
 
                     foreach (var intrusion in intrusions)
@@ -250,6 +300,8 @@ namespace IntrusionDetectionSystem
         /// </summary>
         private void Train()
         {
+            var tempProcMatching = new Dictionary<string, string>();
+
             foreach (var file in Directory.GetFiles(_logDirectory, "*.log"))
             {
                 var fileContent = File.ReadAllText(file);
@@ -260,8 +312,21 @@ namespace IntrusionDetectionSystem
 
                 string[] parts = fileContent.Split(',');
 
-                if (parts.Length != logLen)
-                    throw new FileLoadException("log file is not in the correct format!");
+                // validate the format of the log file
+                if (!ValidateLogEntry(parts, file))
+                    continue; 
+
+                // make sure that we got the symblink of the proc/pid/exe
+                if (parts[0].Contains("/proc/") && parts[0].Contains("/exe") && !tempProcMatching.ContainsKey(parts[0]))
+                {
+                    // This might have happened if the process ended before the C logger program could get the symblink
+                    var key = parts[0];
+                    Write("Unknown alias {0}. Please specify the real name of this process or press ENTER to skip: ", key);
+                    parts[0] = ReadLine();
+                    if (parts[0] == null || parts[0].Trim() == string.Empty)
+                        continue;
+                    tempProcMatching[key] = parts[0];
+                }
 
                 string id = Utils.GenerateMD5(parts[0]);
                 var dbFile = $"database/{id}.json";
@@ -355,7 +420,9 @@ namespace IntrusionDetectionSystem
             // verify that the directory for the database exists
             if (!Directory.Exists("database"))
                 Directory.CreateDirectory("database");
-            WriteLine("Database loaded.");
+            if (!Directory.Exists("intrusion_logs"))
+                Directory.CreateDirectory("intrusion_logs");
+            WriteLine("Directories verified.");
 
             // verify that the log directory is set
             if (!File.Exists(configFile))

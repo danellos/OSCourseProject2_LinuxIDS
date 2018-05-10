@@ -11,12 +11,31 @@ Purpose: Contains the additional system calls needed for the IDS logger.
 #include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <linux/cred.h>
 #include <asm/errno.h>
+
+int is_root(void);
+
+/*
+Returns TRUE if we are a root user, FALSE otherwise.
+*/
+int is_root()
+{
+	kuid_t rootUid;
+
+	rootUid.val = 0;
+	return uid_eq(get_current_cred()->uid, rootUid);
+}
+
 
 /*
 Turns the IDS logger on for a given process ID.
 */
 asmlinkage long sys_ids_log_on(unsigned int process_id) {
+	if (!is_root()) {
+		printk(KERN_ERR "PROJ2: Only root user can access this!");
+		return -EPERM;
+	}
 	if (process_id == 0) {
 		printk(KERN_ERR "PROJ2: Invalid process_id passed");
 		return -EINVAL;
@@ -33,6 +52,10 @@ removes from the list of tracked processes.
 */
 asmlinkage long sys_ids_log_off(unsigned int process_id)
 {
+        if (!is_root()) {
+                printk(KERN_ERR "PROJ2: Only root user can access this!");
+                return -EPERM;
+        }
         if (process_id == 0) {
                 printk(KERN_ERR "PROJ2: Invalid process_id passed");
                 return -EINVAL;
@@ -51,13 +74,25 @@ size of 100.
 asmlinkage long sys_ids_log_read(unsigned int process_id, unsigned char *log_data) {
 	struct tracked_process *data;
         int i;
-	char buffer[100];
+	char * buffer;
+
+	if (!is_root()) {
+                printk(KERN_ERR "PROJ2: Only root user can access this!");
+                return -EPERM;
+        }
 
 	if (process_id == 0 || !access_ok(WRITE_OK, log_data, 100)) {
                 printk(KERN_ERR "Proj2: Invalid process_id or log_data pointer passed");
                 return -EINVAL;
         }
 
+	buffer = (char *)kmalloc(sizeof(char) * 500, GFP_KERNEL);
+	 if (buffer == 0) {
+            // malloc failed, handle
+            printk(KERN_ERR "Proj2: Kmalloc failed on buffer for sys_ids_log_read");
+            return -EINVAL;
+        }
+		
 	data = get_node(process_id);
 
 	if (data == NULL) {
@@ -66,7 +101,7 @@ asmlinkage long sys_ids_log_read(unsigned int process_id, unsigned char *log_dat
 
 	data->is_on = false;
 
-	snprintf(buffer, 100,
+	snprintf(buffer, 500,
                 "%u,%i,%i,%i,%i,%i,%i,%i,%i,%i,%i",
                 data->pid,
                 data->syscalls[0],
@@ -88,6 +123,8 @@ asmlinkage long sys_ids_log_read(unsigned int process_id, unsigned char *log_dat
 	data->syscall_len = 0;
 
 	data->is_on = true;
+	
+	kfree(buffer);
 
 	return 0;
 }
