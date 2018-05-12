@@ -228,7 +228,7 @@ namespace IntrusionDetectionSystem
                                     continue;
                                 }
 
-                                if (sequence[j].Equals(sub[j]))
+                                if (!(sequence[j].Equals(sub[j])))
                                     currDistance++;
                             }
 
